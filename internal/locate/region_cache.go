@@ -54,6 +54,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/pingcap/kvproto/pkg/kvrpcpb"
 	"github.com/pingcap/kvproto/pkg/metapb"
+	"github.com/pingcap/log"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tikv/client-go/v2/config"
@@ -136,9 +137,9 @@ func nextTTL(ts int64) int64 {
 
 var pdRegionMetaCircuitBreaker = circuitbreaker.NewCircuitBreaker("region-meta",
 	circuitbreaker.Settings{
-		ErrorRateWindow:      30,
+		ErrorRateWindow:      30 * time.Second,
 		MinQPSForOpen:        10,
-		CoolDownInterval:     10,
+		CoolDownInterval:     10 * time.Second,
 		HalfOpenSuccessCount: 1,
 	})
 
@@ -1983,7 +1984,7 @@ func (c *RegionCache) searchCachedRegionByKey(key []byte, isEndKey bool) (*Regio
 	if region == nil {
 		return nil, false
 	}
-	return region, !region.checkRegionCacheTTL(time.Now().Unix())
+	return region, true
 }
 
 // searchCachedRegionByID finds the region from cache by id.
@@ -2091,8 +2092,10 @@ func (c *RegionCache) loadRegion(bo *retry.Backoffer, key []byte, isEndKey bool,
 		var err error
 		if searchPrev {
 			reg, err = c.pdClient.GetPrevRegion(withPDCircuitBreaker(ctx), key, opts...)
+			log.Info("load region by prev", zap.String("key", util.HexRegionKeyStr(key)), zap.Error(err))
 		} else {
 			reg, err = c.pdClient.GetRegion(withPDCircuitBreaker(ctx), key, opts...)
+			log.Info("load region", zap.String("key", util.HexRegionKeyStr(key)), zap.Error(err))
 		}
 		metrics.LoadRegionCacheHistogramWhenCacheMiss.Observe(time.Since(start).Seconds())
 		if err != nil {
