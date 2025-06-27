@@ -59,3 +59,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tikv/pd/client => github.com/rleungx/pd/client v0.0.0-20250627074246-ef6e9153e692
